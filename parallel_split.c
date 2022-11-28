@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <omp.h>
+#include <string.h>
 
 
 /* The size of the array to be processed */
@@ -19,6 +20,7 @@ void bottom_up_merge(float * input_data, int starting_cell, int size, float * ou
    if(starting_cell > array_size)
       return;
 
+
    /*The last position to be written */
    //if out of the bound of the array take just the array size (arrived to root)
    const int last_cell = (starting_cell + size <= array_size) ? starting_cell + size : array_size;
@@ -32,21 +34,44 @@ void bottom_up_merge(float * input_data, int starting_cell, int size, float * ou
    /*The last position in the left part to be read*/
    const int last_left = (right_index < last_cell) ? right_index : last_cell;
 
-    int index = starting_cell;
+   int index = starting_cell;
 
-  //#pragma omp parallel for if(size > 5)
-   for(index = starting_cell; index < last_cell; index++){
-      if(left_index < last_left && (right_index >= last_cell || input_data[left_index] <= input_data[right_index])) {
-         output_data[index] = input_data[left_index];
-         left_index++;
-      }
-      else{
-         output_data[index] = input_data[right_index];
-         right_index++;
-      }  
-   }
+
+    for(index = starting_cell; left_index < last_left && right_index < last_cell; index++){
+        if(input_data[left_index] <= input_data[right_index]){
+            output_data[index] = input_data[left_index];
+            left_index++;
+        }else{
+            output_data[index] = input_data[right_index];
+            right_index++;
+        }   
+    }
+
+
+    //fastest way to copy arrays: memcpy 
+    if(left_index < last_left){
+        memcpy(&output_data[index], &input_data[left_index], (last_left - left_index) * sizeof(float));
+        return; //if left-copy the right is already completed, avoiding another useless if
+    }
+  
+    memcpy(&output_data[index], &input_data[right_index], (last_cell - right_index) * sizeof(float));
+    
+            //version 2 using parallel for
+    //******/
+    /* NON EFFICIENT TIME
+    #pragma omp parallel for
+    for(int li = left_index; li < last_left; li++){
+        output_data[index] = input_data[li];
+        index++;
+    }
+
+    #pragma omp parallel for
+    for(int ri = right_index; ri < last_cell; ri++){
+        output_data[index] = input_data[ri];
+        index++;
+    }
+*/
 }
-
 bool isSorted(const float *arr){
   for(int i = 0; i < array_size-1; i++)
     if(arr[i] > arr[i+1]) return false;
@@ -88,7 +113,7 @@ int main(int argc, char ** argv) {
       for(unsigned int j = 0; j < sequence_number; j++) 
           bottom_up_merge(even_data, j * width, width, odd_data);  
     }
-     if(width > array_size / 2) num_ts /= 2; //decrease number of threads for bigger chunks
+    //if(width > array_size) num_ts /= 2;
   }
   
 
