@@ -88,6 +88,7 @@ int main(int argc, char ** argv) {
       for(unsigned int j = 0; j < sequence_number; j++) 
           bottom_up_merge(even_data, j * width, width, odd_data);  
     }
+     if(width > array_size / 2) num_ts /= 2; //decrease number of threads for bigger chunks
   }
   
 
